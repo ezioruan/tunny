@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 	"runtime"
-	"fmt"
 )
 
 func validateReturnInt ( t *testing.T, expecting int, object interface{} ) {
@@ -18,13 +17,13 @@ func validateReturnInt ( t *testing.T, expecting int, object interface{} ) {
 }
 
 func TestBasic (t *testing.T) {
-	sizePool, repeats, sleepFor, margin := 16, 2, 1, 0.1
+	sizePool, repeats, sleepFor, margin := 16, 2, 250, 100
 	outChan  := make(chan int, sizePool)
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	pool := CreatePool(sizePool, func( object interface{} ) ( interface{} ) {
-		time.Sleep(time.Duration(sleepFor) * time.Second)
+		time.Sleep(time.Duration(sleepFor) * time.Millisecond)
 		if w, ok := object.(int); ok {
 			return w * 2
 		}
@@ -48,8 +47,8 @@ func TestBasic (t *testing.T) {
 		<-outChan
 	}
 
-	taken    := float64( time.Since(before) ) / float64(time.Second)
-	expected := ( float64(sleepFor) + margin ) * float64(repeats)
+	taken    := float64( time.Since(before) ) / float64(time.Millisecond)
+	expected := float64( sleepFor + margin ) * float64(repeats)
 
 	if taken > expected {
 		t.Errorf("Wrong, should have taken less than %v seconds, actually took %v", expected, taken)
@@ -71,8 +70,65 @@ func TestExampleCase (t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func() {
 			if value, err := pool.SendWork("hello world"); err == nil {
+				if _, ok := value.(string); ok {
+				} else {
+					t.Errorf("Not a string!")
+				}
+			} else {
+				t.Errorf("Error returned: ", err)
+			}
+		}()
+	}
+}
+
+type customWorker struct {
+	Worker
+}
+
+func (w *customWorker) Work() {
+	w.readyChan <- 1
+	for data := range w.jobChan {
+		output := (*w.job)( data )
+
+		if outputStr, ok := output.(string); ok {
+			w.outputChan <- ( "custom " + outputStr )
+		}
+		w.readyChan <- 1
+	}
+}
+
+func TestCustomWorkers (t *testing.T) {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	job := func( object interface{} ) ( interface{} ) {
+		if str, ok := object.(string); ok {
+			return "job done: " + str
+		}
+		return nil
+	}
+
+	workers := make ([]*SkankWorker, 4)
+    for i, _ := range workers {
+		worker := customWorker { Worker {
+			 make (chan int),
+			 make (chan interface{}),
+			 make (chan interface{}),
+			 &job,
+		 }}
+
+		skankWorker := SkankWorker(&worker)
+        workers[i] = &skankWorker
+    }
+
+	pool := CreateCustomPool(workers).Begin()
+
+	for i := 0; i < 10; i++ {
+		go func() {
+			if value, err := pool.SendWork("hello world"); err == nil {
 				if str, ok := value.(string); ok {
-					fmt.Println(str)
+					if str != "custom job done: hello world" {
+						t.Errorf("Unexpected output from custom worker")
+					}
 				} else {
 					t.Errorf("Not a string!")
 				}
