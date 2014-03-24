@@ -82,42 +82,21 @@ func TestExampleCase (t *testing.T) {
 }
 
 type customWorker struct {
-	Worker
 }
 
-func (w *customWorker) Work() {
-	w.readyChan <- 1
-	for data := range w.jobChan {
-		output := (*w.job)( data )
-
-		if outputStr, ok := output.(string); ok {
-			w.outputChan <- ( "custom " + outputStr )
-		}
-		w.readyChan <- 1
+func (worker *customWorker) Job(data interface{}) interface{} {
+	if outputStr, ok := data.(string); ok {
+		return ("custom job done: " + outputStr )
 	}
+	return nil
 }
 
 func TestCustomWorkers (t *testing.T) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	job := func( object interface{} ) ( interface{} ) {
-		if str, ok := object.(string); ok {
-			return "job done: " + str
-		}
-		return nil
-	}
-
-	workers := make ([]*SkankWorker, 4)
+	workers := make ([]SkankWorker, 4)
     for i, _ := range workers {
-		worker := customWorker { Worker {
-			 make (chan int),
-			 make (chan interface{}),
-			 make (chan interface{}),
-			 &job,
-		 }}
-
-		skankWorker := SkankWorker(&worker)
-        workers[i] = &skankWorker
+        workers[i] = &(customWorker{})
     }
 
 	pool := CreateCustomPool(workers).Begin()

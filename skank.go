@@ -5,48 +5,37 @@ import (
 	"errors"
 )
 
-/* INTERFACES */
-
 type SkankWorker interface {
-	Work()
-	ReadyChan()  chan int
-	JobChan()    chan interface{}
-	OutputChan() chan interface{}
+	Job(interface{}) (interface{})
 }
 
-/* Worker */
-
-type Worker struct {
+type workerWrapper struct {
 	readyChan  chan int
 	jobChan    chan interface{}
 	outputChan chan interface{}
-	job        *func(interface{}) (interface{})
+	worker     SkankWorker
 }
 
-func (worker *Worker) Work () {
-	worker.readyChan <- 1
-	for data := range worker.jobChan {
-		worker.outputChan <- (*worker.job)( data )
-		worker.readyChan <- 1
+func (wrapper *workerWrapper) Work () {
+	wrapper.readyChan <- 1
+	for data := range wrapper.jobChan {
+		wrapper.outputChan <- wrapper.worker.Job( data )
+		wrapper.readyChan <- 1
 	}
 }
 
-func (worker *Worker) ReadyChan() chan int {
-	return worker.readyChan
+type skankDefaultWorker struct {
+	job *func(interface{}) (interface{})
 }
 
-func (worker *Worker) JobChan() chan interface{} {
-	return worker.jobChan
-}
-
-func (worker *Worker) OutputChan() chan interface{} {
-	return worker.outputChan
+func (worker *skankDefaultWorker) Job(data interface{}) interface{} {
+	return (*worker.job)(data)
 }
 
 /* WorkPool */
 
 type WorkPool struct {
-	workers []*SkankWorker
+	workers []*workerWrapper
 	selects []reflect.SelectCase
 	running bool
 }
@@ -54,28 +43,67 @@ type WorkPool struct {
 func CreatePool ( numWorkers int, job func(interface{}) (interface{}) ) *WorkPool {
 	pool := WorkPool { running: false }
 
-	pool.workers = make ([]*SkankWorker, numWorkers)
+	pool.workers = make ([]*workerWrapper, numWorkers)
 	for i, _ := range pool.workers {
-		newWorker := Worker { make (chan int), make (chan interface{}), make (chan interface{}), &job }
-		skankWorker := SkankWorker(&newWorker)
-		pool.workers[i] = &skankWorker
+		newWorker := workerWrapper {
+			make (chan int),
+			make (chan interface{}),
+			make (chan interface{}),
+			&(skankDefaultWorker { &job }),
+		}
+		pool.workers[i] = &newWorker
 	}
 
 	pool.selects = make( []reflect.SelectCase, len(pool.workers) )
 
 	for i, worker := range pool.workers {
-		pool.selects[i] = reflect.SelectCase{ Dir: reflect.SelectRecv, Chan: reflect.ValueOf((*worker).ReadyChan()) }
+		pool.selects[i] = reflect.SelectCase{ Dir: reflect.SelectRecv, Chan: reflect.ValueOf((*worker).readyChan) }
 	}
 
 	return &pool
 }
 
-func CreateCustomPool ( customWorkers []*SkankWorker ) *WorkPool {
-	pool := WorkPool { running: false, workers: customWorkers }
+/*func CreateCustomPool ( numWorkers int, customWorker SkankWorker ) *WorkPool {
+	pool := WorkPool { running: false }
+
+	pool.workers = make ([]*workerWrapper, numWorkers)
+	for i, _ := range pool.workers {
+		newWorker := workerWrapper {
+			make (chan int),
+			make (chan interface{}),
+			make (chan interface{}),
+			customWorker,
+		}
+		pool.workers[i] = &newWorker
+	}
 
 	pool.selects = make( []reflect.SelectCase, len(pool.workers) )
+
 	for i, worker := range pool.workers {
-		pool.selects[i] = reflect.SelectCase{ Dir: reflect.SelectRecv, Chan: reflect.ValueOf((*worker).ReadyChan()) }
+		pool.selects[i] = reflect.SelectCase{ Dir: reflect.SelectRecv, Chan: reflect.ValueOf((*worker).readyChan) }
+	}
+
+	return &pool
+}*/
+
+func CreateCustomPool ( customWorkers []SkankWorker ) *WorkPool {
+	pool := WorkPool { running: false }
+
+	pool.workers = make ([]*workerWrapper, len(customWorkers))
+	for i, _ := range pool.workers {
+		newWorker := workerWrapper {
+			make (chan int),
+			make (chan interface{}),
+			make (chan interface{}),
+			customWorkers[i],
+		}
+		pool.workers[i] = &newWorker
+	}
+
+	pool.selects = make( []reflect.SelectCase, len(pool.workers) )
+
+	for i, worker := range pool.workers {
+		pool.selects[i] = reflect.SelectCase{ Dir: reflect.SelectRecv, Chan: reflect.ValueOf((*worker).readyChan) }
 	}
 
 	return &pool
@@ -85,8 +113,8 @@ func (pool *WorkPool) SendWork ( jobData interface{} ) (interface{}, error) {
 	if pool.running {
 
 		if chosen, _, ok := reflect.Select(pool.selects); ok && chosen >= 0 {
-			(*pool.workers[chosen]).JobChan() <- jobData
-			return <- (*pool.workers[chosen]).OutputChan(), nil
+			(*pool.workers[chosen]).jobChan <- jobData
+			return <- (*pool.workers[chosen]).outputChan, nil
 		}
 
 		return nil, errors.New("No workers or some stupid shit")
@@ -103,10 +131,3 @@ func (pool *WorkPool) Begin () *WorkPool {
 	pool.running = true
 	return pool
 }
-
-func (pool *WorkPool) ForEachWorker ( do func( *SkankWorker ) ) {
-	for i, _ := range pool.workers {
-		do(pool.workers[i])
-	}
-}
-
