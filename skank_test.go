@@ -22,13 +22,20 @@ func TestBasic (t *testing.T) {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	pool := CreatePool(sizePool, func( object interface{} ) ( interface{} ) {
+	pool, errPool := CreatePool(sizePool, func( object interface{} ) ( interface{} ) {
 		time.Sleep(time.Duration(sleepFor) * time.Millisecond)
 		if w, ok := object.(int); ok {
 			return w * 2
 		}
 		return "Not an int!"
-	}).Begin()
+	}).Open()
+
+	if errPool != nil {
+		t.Errorf("Error starting pool: ", errPool)
+		return
+	}
+
+	defer pool.Close()
 
 	for i := 0; i < sizePool * repeats; i++ {
 		go func() {
@@ -56,16 +63,22 @@ func TestBasic (t *testing.T) {
 }
 
 func TestExampleCase (t *testing.T) {
+	outChan  := make(chan int, 10)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	pool := CreatePool(4, func( object interface{} ) ( interface{} ) {
-
+	pool, errPool := CreatePool(4, func( object interface{} ) ( interface{} ) {
 		if str, ok := object.(string); ok {
 			return "job done: " + str
 		}
 		return nil
+	}).Open()
 
-	}).Begin()
+	if errPool != nil {
+		t.Errorf("Error starting pool: ", errPool)
+		return
+	}
+
+	defer pool.Close()
 
 	for i := 0; i < 10; i++ {
 		go func() {
@@ -77,14 +90,28 @@ func TestExampleCase (t *testing.T) {
 			} else {
 				t.Errorf("Error returned: ", err)
 			}
+			outChan <- 1
 		}()
+	}
+
+	for i := 0; i < 10; i++ {
+		<-outChan
 	}
 }
 
 type customWorker struct {
+	// TODO: Put some state here
+}
+
+func (worker *customWorker) Ready() bool {
+	return true
 }
 
 func (worker *customWorker) Job(data interface{}) interface{} {
+	/* TODO: Use and modify state
+	 * there's no need for thread safety paradigms here unless the data is being accessed from
+	 * another goroutine outside of the pool.
+	 */
 	if outputStr, ok := data.(string); ok {
 		return ("custom job done: " + outputStr )
 	}
@@ -92,6 +119,7 @@ func (worker *customWorker) Job(data interface{}) interface{} {
 }
 
 func TestCustomWorkers (t *testing.T) {
+	outChan  := make(chan int, 10)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	workers := make ([]SkankWorker, 4)
@@ -99,9 +127,19 @@ func TestCustomWorkers (t *testing.T) {
         workers[i] = &(customWorker{})
     }
 
-	pool := CreateCustomPool(workers).Begin()
+	pool, errPool := CreateCustomPool(workers).Open()
+
+	if errPool != nil {
+		t.Errorf("Error starting pool: ", errPool)
+		return
+	}
+
+	defer pool.Close()
 
 	for i := 0; i < 10; i++ {
+		/* Calling SendWork is thread safe, go ahead and call it from any goroutine.
+		 * The call will block until a worker is ready and has completed the job.
+		 */
 		go func() {
 			if value, err := pool.SendWork("hello world"); err == nil {
 				if str, ok := value.(string); ok {
@@ -114,6 +152,11 @@ func TestCustomWorkers (t *testing.T) {
 			} else {
 				t.Errorf("Error returned: ", err)
 			}
+			outChan <- 1
 		}()
+	}
+
+	for i := 0; i < 10; i++ {
+		<-outChan
 	}
 }
