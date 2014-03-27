@@ -1,6 +1,6 @@
 /*
 Package skank implements a simple pool for maintaining independant worker threads.
-Here's a simple example of the skank in action, creating a four threaded worker pool:
+Here's a simple example of skank in action, creating a four threaded worker pool:
 
 pool := skank.CreatePool(4, func( object interface{} ) ( interface{} ) {
 	if w, ok := object.(int); ok {
@@ -11,6 +11,8 @@ pool := skank.CreatePool(4, func( object interface{} ) ( interface{} ) {
 
 defer pool.Close()
 
+// pool.SendWork is thread safe, so it can be called from another pool of go routines.
+// This call blocks until a worker is ready and has completed the job
 out, err := pool.SendWork(50)
 */
 package skank
@@ -34,7 +36,7 @@ type workerWrapper struct {
 	worker     SkankWorker
 }
 
-func (wrapper *workerWrapper) Work () {
+func (wrapper *workerWrapper) Loop () {
 	for !wrapper.worker.Ready() {
 		time.Sleep(50 * time.Millisecond)
 	}
@@ -114,7 +116,7 @@ func (pool *WorkPool) Open () (*WorkPool, error) {
 				Chan: reflect.ValueOf((*worker).readyChan),
 			}
 
-			go (*worker).Work()
+			go (*worker).Loop()
 		}
 
 		pool.running = true
@@ -148,7 +150,7 @@ Args: numWorkers int, job func(interface{}) (interface{})
 Summary: number of threads, the closure to run for each job
 */
 func CreatePool ( numWorkers int, job func(interface{}) (interface{}) ) *WorkPool {
-	pool := WorkPool { mutex: sync.RWMutex{}, running: false }
+	pool := WorkPool { running: false }
 
 	pool.workers = make ([]*workerWrapper, numWorkers)
 	for i, _ := range pool.workers {
