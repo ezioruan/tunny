@@ -6,7 +6,7 @@ import (
 	"runtime"
 )
 
-func validateReturnInt ( t *testing.T, expecting int, object interface{} ) {
+func validateReturnInt (t *testing.T, expecting int, object interface{}) {
 	if w, ok := object.(int); ok {
 		if w != expecting {
 			t.Errorf("Wrong, expected %v, got %v", expecting, w)
@@ -22,7 +22,7 @@ func TestBasic (t *testing.T) {
 
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	pool, errPool := CreatePool(sizePool, func( object interface{} ) ( interface{} ) {
+	pool, errPool := CreatePool(sizePool, func(object interface{}) interface{} {
 		time.Sleep(time.Duration(sleepFor) * time.Millisecond)
 		if w, ok := object.(int); ok {
 			return w * 2
@@ -66,7 +66,7 @@ func TestExampleCase (t *testing.T) {
 	outChan  := make(chan int, 10)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	pool, errPool := CreatePool(4, func( object interface{} ) ( interface{} ) {
+	pool, errPool := CreatePool(4, func(object interface{}) interface{} {
 		if str, ok := object.(string); ok {
 			return "job done: " + str
 		}
@@ -122,7 +122,7 @@ func TestCustomWorkers (t *testing.T) {
 	outChan  := make(chan int, 10)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	workers := make ([]SkankWorker, 4)
+	workers := make([]SkankWorker, 4)
     for i, _ := range workers {
         workers[i] = &(customWorker{})
     }

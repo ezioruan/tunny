@@ -80,7 +80,7 @@ type WorkPool struct {
 	running bool
 }
 
-func (pool *WorkPool) SendWork ( jobData interface{} ) (interface{}, error) {
+func (pool *WorkPool) SendWork (jobData interface{}) (interface{}, error) {
 	pool.mutex.RLock()
 	defer pool.mutex.RUnlock()
 
@@ -91,7 +91,7 @@ func (pool *WorkPool) SendWork ( jobData interface{} ) (interface{}, error) {
 			return <- (*pool.workers[chosen]).outputChan, nil
 		}
 
-		return nil, errors.New("No workers or some stupid shit")
+		return nil, errors.New("Failed to find or wait for a worker")
 
 	} else {
 		return nil, errors.New("Pool is not running! Call Open() before sending work")
@@ -149,7 +149,7 @@ CreatePool is a helper function that creates a pool of workers.
 Args: numWorkers int, job func(interface{}) (interface{})
 Summary: number of threads, the closure to run for each job
 */
-func CreatePool ( numWorkers int, job func(interface{}) (interface{}) ) *WorkPool {
+func CreatePool (numWorkers int, job func(interface{}) interface{}) *WorkPool {
 	pool := WorkPool { running: false }
 
 	pool.workers = make ([]*workerWrapper, numWorkers)
@@ -168,7 +168,7 @@ CreateCustomPool is a helper function that creates a pool for an array of custom
 Args: customWorkers []SkankWorker
 Summary: An array of workers to use in the pool, each worker gets its own thread
 */
-func CreateCustomPool ( customWorkers []SkankWorker ) *WorkPool {
+func CreateCustomPool (customWorkers []SkankWorker) *WorkPool {
 	pool := WorkPool { running: false }
 
 	pool.workers = make ([]*workerWrapper, len(customWorkers))
