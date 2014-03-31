@@ -80,6 +80,49 @@ type WorkPool struct {
 	running bool
 }
 
+func (pool *WorkPool) SendWorkTimed (milliTimeout time.Duration, jobData interface{}) (interface{}, error) {
+    pool.mutex.RLock()
+    defer pool.mutex.RUnlock()
+
+    if pool.running {
+		before := time.Now()
+
+		// Create new selectcase[] and add time out case
+		selectCases := append(pool.selects[:], reflect.SelectCase {
+			Dir: reflect.SelectRecv,
+			Chan: reflect.ValueOf(time.After(milliTimeout * time.Millisecond)),
+		})
+
+		// Wait for workers, or time out
+        chosen, _, ok := reflect.Select(selectCases)
+		if ( ok ) {
+			if ( chosen < ( len(selectCases) - 1 ) ) {
+				(*pool.workers[chosen]).jobChan <- jobData
+
+				// Wait for response, or time out
+				select {
+				case data := <-(*pool.workers[chosen]).outputChan:
+					return data, nil
+				case <- time.After((milliTimeout * time.Millisecond) - time.Since(before)):
+					/* If we time out here we also need to ensure that the output is still collected and that
+					 * the worker can move on. Therefore, we fork the waiting process into a new thread.
+					 */
+					go func() {
+						<-(*pool.workers[chosen]).outputChan
+					}()
+					return nil, errors.New("Request timed out whilst waiting for job to complete")
+				}
+			} else {
+				return nil, errors.New("Request timed out whilst waiting for a worker")
+			}
+		} else {
+			return nil, errors.New("Failed to find a worker")
+		}
+    } else {
+        return nil, errors.New("Pool is not running! Call Open() before sending work")
+    }
+}
+
 func (pool *WorkPool) SendWork (jobData interface{}) (interface{}, error) {
 	pool.mutex.RLock()
 	defer pool.mutex.RUnlock()

@@ -6,6 +6,60 @@ import (
 	"runtime"
 )
 
+func TestTimeout (t *testing.T) {
+	outChan  := make(chan int, 3)
+
+	pool, errPool := CreatePool(1, func(object interface{}) interface{} {
+		time.Sleep(500 * time.Millisecond)
+		return nil
+	}).Open()
+
+	if errPool != nil {
+		t.Errorf("Error starting pool: ", errPool)
+		return
+	}
+
+	defer pool.Close()
+
+	before := time.Now()
+
+	go func() {
+		if _, err := pool.SendWorkTimed(200, nil); err == nil {
+			t.Errorf("No timeout triggered thread one")
+		} else {
+			taken := ( time.Since(before) / time.Millisecond )
+			if taken > 210 {
+				t.Errorf("Time taken at thread one: ", taken, ", with error: ", err)
+			}
+		}
+		outChan <- 1
+
+		go func() {
+			if _, err := pool.SendWork(nil); err == nil {
+			} else {
+				t.Errorf("Error at thread three: ", err)
+			}
+			outChan <- 1
+		}()
+	}()
+
+	go func() {
+		if _, err := pool.SendWorkTimed(200, nil); err == nil {
+			t.Errorf("No timeout triggered thread two")
+		} else {
+			taken := ( time.Since(before) / time.Millisecond )
+			if taken > 210 {
+				t.Errorf("Time taken at thread two: ", taken, ", with error: ", err)
+			}
+		}
+		outChan <- 1
+	}()
+
+	for i := 0; i < 3; i++ {
+		<-outChan
+	}
+}
+
 func validateReturnInt (t *testing.T, expecting int, object interface{}) {
 	if w, ok := object.(int); ok {
 		if w != expecting {
