@@ -1,7 +1,7 @@
 Skank
 =====
 
-Skank is a golang library for creating and managing a thread pool of fixed size, aiming to be simple, intuitive, ground breaking, revolutionary and world dominating.
+Skank is a golang library for creating and managing a thread pool, aiming to be simple, intuitive, ground breaking, revolutionary, world dominating and also rather trashy.
 
 Use cases for skank are any situation where a large flood of jobs are imminent, potentially from different threads, and you need to bottleneck those jobs through a fixed number of dedicated worker threads. The most obvious example is as an easy wrapper for limiting the hard work done in your software to the number of CPU's available, preventing the threads from foolishly competing with each other for CPU time.
 
@@ -66,6 +66,107 @@ func CalcRoots (inputs []float64) []float64 {
 ```
 
 This particular example, since it all resides in the one func, could actually be done with less code by simply spawning numCPU's goroutines that gobble up a shared channel of float64's. This would probably also be quicker since you waste cycles here boxing and unboxing the job values, but at least you don't have to write it all yourself you lazy scum.
+
+##Specify a time out period
+
+To make pool calls adhere to a timeout period of your choice simply swap the call to SendWork with SendWorkTimed, like so:
+
+```golang
+...
+
+
+// SendWorkTimed takes an argument for a timeout in milliseconds.
+// If this timeout triggers the call will return with an error
+if value, err := pool.SendWorkTimed(500, inputs[index]); err == nil {
+	if result, ok := value.(float64); ok {
+		outputs[index] = result
+	}
+} else {
+// A timeout most likely occured, I haven't checked this specifically because I'm a lazy garbage mongler.
+}
+
+...
+```
+
+This snippet will send the job, and wait for up to 500 milliseconds for an answer. You could optionally implement a timeout yourself by starting a new goroutine that returns the output through a channel, and having that channel compete with time.After().
+
+You'd be an idiot for doing that though because you would be forcing the pool to send work to a worker even if the timeout occured whilst waiting for a worker to become available, you muppet!
+
+##How do I give my workers state?
+
+The call to skank.CreatePool will generate a pool of SkankWorkers for you, and then assign each worker the closure argument to run for each job. You can, however, create these workers yourself, thereby allowing you to also give them their own state and methods.
+
+Here is a short example:
+
+```golang
+...
+
+type customWorker struct {
+    // TODO: Put some state here
+}
+
+// Use this call to block further jobs if necessary
+func (worker *customWorker) Ready() bool {
+    return true
+}
+
+// This is where the work actually happens
+func (worker *customWorker) Job(data interface{}) interface{} {
+    /* TODO: Use and modify state
+     * there's no need for thread safety paradigms here unless the data is being accessed from
+     * another goroutine outside of the pool.
+     */
+    if outputStr, ok := data.(string); ok {
+        return ("custom job done: " + outputStr )
+    }
+    return nil
+}
+
+func TestCustomWorkers (t *testing.T) {
+    outChan  := make(chan int, 10)
+
+    workers := make([]skank.SkankWorker, 4)
+    for i, _ := range workers {
+        workers[i] = &(customWorker{})
+    }
+
+    pool, errPool := skank.CreateCustomPool(workers).Open()
+
+    if errPool != nil {
+        t.Errorf("Error starting pool: ", errPool)
+        return
+    }
+
+    defer pool.Close()
+
+    for i := 0; i < 10; i++ {
+        go func() {
+            if value, err := pool.SendWork("hello world"); err == nil {
+                if str, ok := value.(string); ok {
+                    if str != "custom job done: hello world" {
+                        t.Errorf("Unexpected output from custom worker")
+                    }
+                } else {
+                    t.Errorf("Not a string!")
+                }
+            } else {
+                t.Errorf("Error returned: ", err)
+            }
+            outChan <- 1
+        }()
+    }
+
+    for i := 0; i < 10; i++ {
+        <-outChan
+    }
+}
+
+...
+```
+
+You'll notice that as well as the important Job(data interface{}) interface{} call to implement there is also the call Ready() bool. Ready is potentially an important part of the SkankWorker that allows you use your state to determine whether or not this worker should take on any more work.
+
+For example, your worker could hold a counter of how many jobs it has done, and perhaps after a certain amount it should perform another act before taking on more work, it's important to use Ready for these occasions since blocking the Job call will hold up the client.
 
 ##So where do I actually benefit from using skank?
 

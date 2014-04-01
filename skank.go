@@ -14,6 +14,10 @@ defer pool.Close()
 // pool.SendWork is thread safe, so it can be called from another pool of go routines.
 // This call blocks until a worker is ready and has completed the job
 out, err := pool.SendWork(50)
+
+// This call blocks until either a result is obtained or the specified timeout period
+// (5000 milliseconds) occurs.
+out2, err2 := pool.SendWorkTimed(5000, 50)
 */
 package skank
 
@@ -80,6 +84,11 @@ type WorkPool struct {
 	running bool
 }
 
+/*
+SendWorkTimed - Send a job to a worker and return the result, this is a blocking call with a timeout.
+SendWorkTimed - Args:    milliTimeout time.Duration, jobData interface{}
+SendWorkTimed - Summary: the timeout period in milliseconds, the input data for the worker to process
+*/
 func (pool *WorkPool) SendWorkTimed (milliTimeout time.Duration, jobData interface{}) (interface{}, error) {
     pool.mutex.RLock()
     defer pool.mutex.RUnlock()
@@ -123,6 +132,11 @@ func (pool *WorkPool) SendWorkTimed (milliTimeout time.Duration, jobData interfa
     }
 }
 
+/*
+SendWork - Send a job to a worker and return the result, this is a blocking call.
+SendWork - Args:    jobData interface{}
+SendWork - Summary: the input data for the worker to process
+*/
 func (pool *WorkPool) SendWork (jobData interface{}) (interface{}, error) {
 	pool.mutex.RLock()
 	defer pool.mutex.RUnlock()
@@ -141,6 +155,9 @@ func (pool *WorkPool) SendWork (jobData interface{}) (interface{}, error) {
 	}
 }
 
+/*
+Open - Open all channels and launch the background goroutines managed by the pool.
+*/
 func (pool *WorkPool) Open () (*WorkPool, error) {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
@@ -170,7 +187,10 @@ func (pool *WorkPool) Open () (*WorkPool, error) {
 	}
 }
 
-func (pool *WorkPool) Close() error {
+/*
+Close - Close all channels and goroutines managed by the pool.
+*/
+func (pool *WorkPool) Close () error {
 	pool.mutex.Lock()
 	defer pool.mutex.Unlock()
 
@@ -188,9 +208,9 @@ func (pool *WorkPool) Close() error {
 }
 
 /*
-CreatePool is a helper function that creates a pool of workers.
-Args: numWorkers int, job func(interface{}) (interface{})
-Summary: number of threads, the closure to run for each job
+CreatePool - Creates a pool of workers.
+CreatePool - Args:    numWorkers int,    job func(interface{}) (interface{})
+CreatePool - Summary: number of threads, the closure to run for each job
 */
 func CreatePool (numWorkers int, job func(interface{}) interface{}) *WorkPool {
 	pool := WorkPool { running: false }
@@ -207,9 +227,9 @@ func CreatePool (numWorkers int, job func(interface{}) interface{}) *WorkPool {
 }
 
 /*
-CreateCustomPool is a helper function that creates a pool for an array of custom workers.
-Args: customWorkers []SkankWorker
-Summary: An array of workers to use in the pool, each worker gets its own thread
+CreateCustomPool - Creates a pool for an array of custom workers.
+CreateCustomPool - Args:    customWorkers []SkankWorker
+CreateCustomPool - Summary: An array of workers to use in the pool, each worker gets its own thread
 */
 func CreateCustomPool (customWorkers []SkankWorker) *WorkPool {
 	pool := WorkPool { running: false }
