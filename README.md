@@ -10,7 +10,6 @@ Use cases for skank are any situation where a large flood of jobs are imminent, 
 
 go get github.com/jeffail/skank
 
-
 ```
 
 ##How to use:
@@ -18,7 +17,6 @@ go get github.com/jeffail/skank
 Here's a simple example of skank being used to distribute a batch of calculations to a pool of workers that matches the number of CPU's:
 
 ```go
-
 ...
 
 import "github.com/jeffail/skank"
@@ -108,7 +106,6 @@ To make pool calls adhere to a timeout period of your choice simply swap the cal
 
 ```go
 ...
-
 
 // SendWorkTimed takes an argument for a timeout in milliseconds.
 // If this timeout triggers the call will return with an error

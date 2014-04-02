@@ -90,10 +90,10 @@ SendWorkTimed - Args:    milliTimeout time.Duration, jobData interface{}
 SendWorkTimed - Summary: the timeout period in milliseconds, the input data for the worker to process
 */
 func (pool *WorkPool) SendWorkTimed (milliTimeout time.Duration, jobData interface{}) (interface{}, error) {
-    pool.mutex.RLock()
-    defer pool.mutex.RUnlock()
+	pool.mutex.RLock()
+	defer pool.mutex.RUnlock()
 
-    if pool.running {
+	if pool.running {
 		before := time.Now()
 
 		// Create new selectcase[] and add time out case
@@ -108,14 +108,14 @@ func (pool *WorkPool) SendWorkTimed (milliTimeout time.Duration, jobData interfa
 			if ( chosen < ( len(selectCases) - 1 ) ) {
 				(*pool.workers[chosen]).jobChan <- jobData
 
-				// Wait for response, or time out
+		// Wait for response, or time out
 				select {
 				case data := <-(*pool.workers[chosen]).outputChan:
 					return data, nil
 				case <- time.After((milliTimeout * time.Millisecond) - time.Since(before)):
-					/* If we time out here we also need to ensure that the output is still collected and that
-					 * the worker can move on. Therefore, we fork the waiting process into a new thread.
-					 */
+		/* If we time out here we also need to ensure that the output is still collected and that
+		 * the worker can move on. Therefore, we fork the waiting process into a new thread.
+		 */
 					go func() {
 						<-(*pool.workers[chosen]).outputChan
 					}()
@@ -127,9 +127,9 @@ func (pool *WorkPool) SendWorkTimed (milliTimeout time.Duration, jobData interfa
 		} else {
 			return nil, errors.New("Failed to find a worker")
 		}
-    } else {
-        return nil, errors.New("Pool is not running! Call Open() before sending work")
-    }
+	} else {
+		return nil, errors.New("Pool is not running! Call Open() before sending work")
+	}
 }
 
 /*
