@@ -1,8 +1,8 @@
 /*
-Package skank implements a simple pool for maintaining independant worker threads.
-Here's a simple example of skank in action, creating a four threaded worker pool:
+Package tunny implements a simple pool for maintaining independant worker threads.
+Here's a simple example of tunny in action, creating a four threaded worker pool:
 
-pool := skank.CreatePool(4, func( object interface{} ) ( interface{} ) {
+pool := tunny.CreatePool(4, func( object interface{} ) ( interface{} ) {
 	if w, ok := object.(int); ok {
 		return w * 2
 	}
@@ -19,7 +19,7 @@ out, err := pool.SendWork(50)
 // (5000 milliseconds) occurs.
 out2, err2 := pool.SendWorkTimed(5000, 50)
 */
-package skank
+package tunny
 
 import (
 	"reflect"
@@ -28,7 +28,7 @@ import (
 	"sync"
 )
 
-type SkankWorker interface {
+type TunnyWorker interface {
 	Job(interface{}) (interface{})
 	Ready() bool
 }
@@ -37,7 +37,7 @@ type workerWrapper struct {
 	readyChan  chan int
 	jobChan    chan interface{}
 	outputChan chan interface{}
-	worker     SkankWorker
+	worker     TunnyWorker
 }
 
 func (wrapper *workerWrapper) Loop () {
@@ -60,15 +60,15 @@ func (wrapper *workerWrapper) Close () {
 	close(wrapper.jobChan)
 }
 
-type skankDefaultWorker struct {
+type tunnyDefaultWorker struct {
 	job *func(interface{}) (interface{})
 }
 
-func (worker *skankDefaultWorker) Job(data interface{}) interface{} {
+func (worker *tunnyDefaultWorker) Job(data interface{}) interface{} {
 	return (*worker.job)(data)
 }
 
-func (worker *skankDefaultWorker) Ready() bool {
+func (worker *tunnyDefaultWorker) Ready() bool {
 	return true
 }
 
@@ -218,7 +218,7 @@ func CreatePool (numWorkers int, job func(interface{}) interface{}) *WorkPool {
 	pool.workers = make ([]*workerWrapper, numWorkers)
 	for i, _ := range pool.workers {
 		newWorker := workerWrapper {
-			worker: &(skankDefaultWorker { &job }),
+			worker: &(tunnyDefaultWorker { &job }),
 		}
 		pool.workers[i] = &newWorker
 	}
@@ -245,10 +245,10 @@ func CreatePoolGeneric (numWorkers int) *WorkPool {
 
 /*
 CreateCustomPool - Creates a pool for an array of custom workers.
-CreateCustomPool - Args:    customWorkers []SkankWorker
+CreateCustomPool - Args:    customWorkers []TunnyWorker
 CreateCustomPool - Summary: An array of workers to use in the pool, each worker gets its own thread
 */
-func CreateCustomPool (customWorkers []SkankWorker) *WorkPool {
+func CreateCustomPool (customWorkers []TunnyWorker) *WorkPool {
 	pool := WorkPool { running: false }
 
 	pool.workers = make ([]*workerWrapper, len(customWorkers))

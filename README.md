@@ -1,23 +1,23 @@
-![Skank](http://www.creepybit.co.uk/images/skank_logo_small.png "Skank")
+![Tunny](http://www.creepybit.co.uk/images/tunny_logo_small.png "Tunny")
 
-Skank is a golang library for creating and managing a thread pool, aiming to be simple, intuitive, ground breaking, revolutionary, world dominating and also trashy.
+Tunny is a golang library for creating and managing a thread pool, aiming to be simple, intuitive, ground breaking, revolutionary, world dominating and also trashy.
 
-Use cases for skank are any situation where a large flood of jobs are imminent, potentially from different threads, and you need to bottleneck those jobs through a fixed number of dedicated worker threads. The most obvious example is as an easy wrapper for limiting the hard work done in your software to the number of CPU's available, preventing the threads from foolishly competing with each other for CPU time.
+Use cases for tunny are any situation where a large flood of jobs are imminent, potentially from different threads, and you need to bottleneck those jobs through a fixed number of dedicated worker threads. The most obvious example is as an easy wrapper for limiting the hard work done in your software to the number of CPU's available, preventing the threads from foolishly competing with each other for CPU time.
 
 ##How to install:
 
 ```bash
-go get github.com/jeffail/skank
+go get github.com/jeffail/tunny
 ```
 
 ##How to use:
 
-Here's a simple example of skank being used to distribute a batch of calculations to a pool of workers that matches the number of CPU's:
+Here's a simple example of tunny being used to distribute a batch of calculations to a pool of workers that matches the number of CPU's:
 
 ```go
 ...
 
-import "github.com/jeffail/skank"
+import "github.com/jeffail/tunny"
 
 ...
 
@@ -33,7 +33,7 @@ func CalcRoots (inputs []float64) []float64 {
 	 * if each worker needs to carry its own state then this can also
 	 * be accomplished, read on.
      */
-    pool, err := skank.CreatePool(numCPUs, func( object interface{} ) ( interface{} ) {
+    pool, err := tunny.CreatePool(numCPUs, func( object interface{} ) ( interface{} ) {
         if value, ok := object.(float64); ok {
             // Hard work here
             return math.Sqrt(value)
@@ -86,7 +86,7 @@ Yes, the arguments passed to the worker are boxed as interface{}, so this can ac
 
 exampleChannel := make(chan int)
 
-pool, _ := skank.CreatePoolGeneric(numCPUs).Open()
+pool, _ := tunny.CreatePoolGeneric(numCPUs).Open()
 
 pool.SendWork(func() {
 	/* Do your hard work here, usual rules of enclosures apply here,
@@ -126,7 +126,7 @@ You'd be an idiot for doing that though because you would be forcing the pool to
 
 ##How do I give my workers state?
 
-The call to skank.CreatePool will generate a pool of SkankWorkers for you, and then assign each worker the closure argument to run for each job. You can, however, create these workers yourself, thereby allowing you to also give them their own state and methods.
+The call to tunny.CreatePool will generate a pool of TunnyWorkers for you, and then assign each worker the closure argument to run for each job. You can, however, create these workers yourself, thereby allowing you to also give them their own state and methods.
 
 Here is a short example:
 
@@ -158,12 +158,12 @@ func (worker *customWorker) Job(data interface{}) interface{} {
 func TestCustomWorkers (t *testing.T) {
     outChan  := make(chan int, 10)
 
-    workers := make([]skank.SkankWorker, 4)
+    workers := make([]tunny.TunnyWorker, 4)
     for i, _ := range workers {
         workers[i] = &(customWorker{})
     }
 
-    pool, errPool := skank.CreateCustomPool(workers).Open()
+    pool, errPool := tunny.CreateCustomPool(workers).Open()
 
     if errPool != nil {
         t.Errorf("Error starting pool: ", errPool)
@@ -197,12 +197,12 @@ func TestCustomWorkers (t *testing.T) {
 ...
 ```
 
-You'll notice that as well as the important Job(data interface{}) interface{} call to implement there is also the call Ready() bool. Ready is potentially an important part of the SkankWorker that allows you to use your state to determine whether or not this worker should take on another job yet, and answer true or false accordingly.
+You'll notice that as well as the important Job(data interface{}) interface{} call to implement there is also the call Ready() bool. Ready is potentially an important part of the TunnyWorker that allows you to use your state to determine whether or not this worker should take on another job yet, and answer true or false accordingly.
 
 For example, your worker could hold a counter of how many jobs it has done, and perhaps after a certain amount it should perform another act before taking on more work, it's important to use Ready for these occasions since blocking the Job call will hold up the waiting client.
 
 You can block Ready whilst you wait for some condition to change, or alternatively you can return a true/false straight away, in this case the call will be repeated at 50 millisecond intervals until you answer true.
 
-##So where do I actually benefit from using skank?
+##So where do I actually benefit from using tunny?
 
 You don't, I'm not a god damn charity.

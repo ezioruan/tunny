@@ -1,4 +1,4 @@
-package skank
+package tunny
 
 import (
 	"testing"
@@ -77,7 +77,7 @@ func TestTimeoutRequests (t *testing.T) {
 	defer pool.Close()
 
 	for i := 0; i < n_polls; i++ {
-		if _, err := pool.SendWorkTimed(5, nil); err == nil {
+		if _, err := pool.SendWorkTimed(50, nil); err == nil {
 		} else {
 			t.Errorf("thread %v error: ", i, err)
 		}
@@ -250,7 +250,7 @@ func TestCustomWorkers (t *testing.T) {
 	outChan  := make(chan int, 10)
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	workers := make([]SkankWorker, 4)
+	workers := make([]TunnyWorker, 4)
     for i, _ := range workers {
         workers[i] = &(customWorker{})
     }
