@@ -103,7 +103,7 @@ func (pool *WorkPool) SendWorkTimed (milliTimeout time.Duration, jobData interfa
 		})
 
 		// Wait for workers, or time out
-        chosen, _, ok := reflect.Select(selectCases)
+		chosen, _, ok := reflect.Select(selectCases)
 		if ( ok ) {
 			if ( chosen < ( len(selectCases) - 1 ) ) {
 				(*pool.workers[chosen]).jobChan <- jobData
