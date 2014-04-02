@@ -1,4 +1,4 @@
-![Skank](http://www.creepybit.co.uk/images/skank_logo.png "Skank")
+![Skank](http://www.creepybit.co.uk/images/skank_logo_small.png "Skank")
 
 Skank is a golang library for creating and managing a thread pool, aiming to be simple, intuitive, ground breaking, revolutionary, world dominating and also trashy.
 
@@ -19,10 +19,11 @@ func CalcRoots (inputs []float64) []float64 {
 
     runtime.GOMAXPROCS(numCPUs)
 
-    /* Create the pool, and specify the job each worker should perform, if each worker needs
-     * to carry its own state then this can also be accomplished, read on.
+    /* Create the pool, and specify the job each worker should perform,
+	 * if each worker needs to carry its own state then this can also
+	 * be accomplished, read on.
      */
-    pool, errPool := skank.CreatePool(numCPUs, func( object interface{} ) ( interface{} ) {
+    pool, err := skank.CreatePool(numCPUs, func( object interface{} ) ( interface{} ) {
         if value, ok := object.(float64); ok {
             // Hard work here
             return math.Sqrt(value)
@@ -30,20 +31,20 @@ func CalcRoots (inputs []float64) []float64 {
         return nil
     }).Open()
 
-    if errPool != nil {
-        fmt.Fprintln(os.Stderr, "Error starting pool: ", errPool)
+    if err != nil {
+        fmt.Fprintln(os.Stderr, "Error starting pool: ", err)
         return nil
     }
 
     defer pool.Close()
 
-    /* Creates a go routine for all jobs, these will be blocked until a worker is available
-     * and has finished the request.
+    /* Creates a go routine for all jobs, these will be blocked until
+	 * a worker is available and has finished the request.
      */
     for i := 0; i < numJobs; i++ {
         go func(index int) {
             // SendWork is thread safe. Go ahead and call it from any go routine
-            if value, err := pool.SendWork(inputs[index]); err == nil {
+            if value, err2 := pool.SendWork(inputs[index]); err2 == nil {
                 if result, ok := value.(float64); ok {
                     outputs[index] = result
                 }
@@ -135,8 +136,9 @@ func (worker *customWorker) Ready() bool {
 // This is where the work actually happens
 func (worker *customWorker) Job(data interface{}) interface{} {
     /* TODO: Use and modify state
-     * there's no need for thread safety paradigms here unless the data is being accessed from
-     * another go routine outside of the pool.
+     * there's no need for thread safety paradigms here unless the
+	 * data is being accessed from another go routine outside of
+	 * the pool.
      */
     if outputStr, ok := data.(string); ok {
         return ("custom job done: " + outputStr )
