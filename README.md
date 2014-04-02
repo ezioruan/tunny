@@ -1,5 +1,4 @@
-Skank
-=====
+![Skank](http://www.creepybit.co.uk/images/skank_logo.png "Skank")
 
 Skank is a golang library for creating and managing a thread pool, aiming to be simple, intuitive, ground breaking, revolutionary, world dominating and also trashy.
 
@@ -9,7 +8,7 @@ Use cases for skank are any situation where a large flood of jobs are imminent, 
 
 Here's a simple example of skank being used to distribute a batch of calculations to a pool of workers that matches the number of CPU's:
 
-```golang
+```go
 ...
 
 func CalcRoots (inputs []float64) []float64 {
@@ -67,11 +66,11 @@ func CalcRoots (inputs []float64) []float64 {
 
 This particular example, since it all resides in the one func, could actually be done with less code by simply spawning numCPU's go routines that gobble up a shared channel of float64's. This would probably also be quicker since you waste cycles here boxing and unboxing the job values, but at least you don't have to write it all yourself you lazy scum.
 
-##Can I specify the job to do at SendWork instead of CreatePool?
+##Can I specify the job for each work call?
 
 Yes, the arguments passed to the worker are boxed as interface{}, so this can actually be a func, you can implement this yourself, or if you're not bothered about return values you can use:
 
-```golang
+```go
 ...
 
 exampleChannel := make(chan int)
@@ -79,7 +78,9 @@ exampleChannel := make(chan int)
 pool, _ := skank.CreatePoolGeneric(numCPUs).Open()
 
 pool.SendWork(func() {
-	// Do your hard work here, usual rules of enclosures apply here, so you can return values like so:
+	/* Do your hard work here, usual rules of enclosures apply here,
+	 * so you can return values like so:
+	 */
 	exampleChannel <- 10
 })
 
@@ -90,7 +91,7 @@ pool.SendWork(func() {
 
 To make pool calls adhere to a timeout period of your choice simply swap the call to SendWork with SendWorkTimed, like so:
 
-```golang
+```go
 ...
 
 
@@ -101,7 +102,9 @@ if value, err := pool.SendWorkTimed(500, inputs[index]); err == nil {
 		outputs[index] = result
 	}
 } else {
-// A timeout most likely occured, I haven't checked this specifically because I'm a lazy garbage mongler.
+/* A timeout most likely occured, I haven't checked this specifically because
+ * I am a lazy garbage mongler.
+ */
 }
 
 ...
@@ -117,7 +120,7 @@ The call to skank.CreatePool will generate a pool of SkankWorkers for you, and t
 
 Here is a short example:
 
-```golang
+```go
 ...
 
 type customWorker struct {
