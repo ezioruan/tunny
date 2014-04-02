@@ -7,9 +7,7 @@ Use cases for skank are any situation where a large flood of jobs are imminent, 
 ##How to install:
 
 ```bash
-
 go get github.com/jeffail/skank
-
 ```
 
 ##How to use:
