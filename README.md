@@ -4,11 +4,25 @@ Skank is a golang library for creating and managing a thread pool, aiming to be 
 
 Use cases for skank are any situation where a large flood of jobs are imminent, potentially from different threads, and you need to bottleneck those jobs through a fixed number of dedicated worker threads. The most obvious example is as an easy wrapper for limiting the hard work done in your software to the number of CPU's available, preventing the threads from foolishly competing with each other for CPU time.
 
+##How to install:
+
+```bash
+
+go get github.com/jeffail/skank
+
+
+```
+
 ##How to use:
 
 Here's a simple example of skank being used to distribute a batch of calculations to a pool of workers that matches the number of CPU's:
 
 ```go
+
+...
+
+import "github.com/jeffail/skank"
+
 ...
 
 func CalcRoots (inputs []float64) []float64 {
