@@ -60,6 +60,35 @@ func TestTimeout (t *testing.T) {
 	}
 }
 
+func TestTimeoutRequests (t *testing.T) {
+	n_polls := 200
+	outChan  := make(chan int, n_polls)
+
+	pool, errPool := CreatePool(1, func(object interface{}) interface{} {
+		time.Sleep(time.Millisecond)
+		return nil
+	}).Open()
+
+	if errPool != nil {
+		t.Errorf("Error starting pool: ", errPool)
+		return
+	}
+
+	defer pool.Close()
+
+	for i := 0; i < n_polls; i++ {
+		if _, err := pool.SendWorkTimed(5, nil); err == nil {
+		} else {
+			t.Errorf("thread %v error: ", i, err)
+		}
+		outChan <- 1
+	}
+
+	for i := 0; i < n_polls; i++ {
+		<-outChan
+	}
+}
+
 func validateReturnInt (t *testing.T, expecting int, object interface{}) {
 	if w, ok := object.(int); ok {
 		if w != expecting {
