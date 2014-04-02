@@ -227,6 +227,23 @@ func CreatePool (numWorkers int, job func(interface{}) interface{}) *WorkPool {
 }
 
 /*
+CreatePoolGeneric - Creates a pool of generic workers, they take a func as their only argument and execute it.
+CreatePoolGeneric - Args:    numWorkers int
+CreatePoolGeneric - Summary: number of threads
+*/
+func CreatePoolGeneric (numWorkers int) *WorkPool {
+
+	return CreatePool(numWorkers, func (jobCall interface{}) interface{} {
+		if method, ok := jobCall.(func()); ok {
+			method()
+			return nil
+		}
+		return errors.New("Generic worker not given a func()")
+	})
+
+}
+
+/*
 CreateCustomPool - Creates a pool for an array of custom workers.
 CreateCustomPool - Args:    customWorkers []SkankWorker
 CreateCustomPool - Summary: An array of workers to use in the pool, each worker gets its own thread

@@ -145,6 +145,51 @@ func TestBasic (t *testing.T) {
 	}
 }
 
+func TestGeneric (t *testing.T) {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
+	if pool, err := CreatePoolGeneric(10).Open(); err == nil {
+		defer pool.Close()
+
+		outChan  := make(chan int, 10)
+
+		for i := 0; i < 10; i++ {
+			go func(id int) {
+				one, err := pool.SendWork(func() {
+					outChan <- id
+				})
+
+				if err != nil {
+					t.Errorf("Generic call timed out!")
+				}
+
+				if one != nil {
+					if funcerr, ok := one.(error); ok {
+						t.Errorf("Generic worker call: ", funcerr)
+					} else {
+						t.Errorf("Unexpected result from generic worker")
+					}
+				}
+			}(i)
+		}
+
+		results := make([]int, 10)
+
+		for i := 0; i < 10; i++ {
+			value := <-outChan
+			if results[value] != 0 || value > 9 || value < 0 {
+				t.Errorf("duplicate or incorrect key: %v", value)
+			}
+			results[value] = 1
+		}
+
+	} else {
+		t.Errorf("Error starting pool: ", err)
+		return
+	}
+
+}
+
 func TestExampleCase (t *testing.T) {
 	outChan  := make(chan int, 10)
 	runtime.GOMAXPROCS(runtime.NumCPU())
