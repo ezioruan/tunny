@@ -241,7 +241,7 @@ func (worker *customWorker) Job(data interface{}) interface{} {
 	 * another goroutine outside of the pool.
 	 */
 	if outputStr, ok := data.(string); ok {
-		return ("custom job done: " + outputStr )
+		return ("custom job done: " + outputStr)
 	}
 	return nil
 }
@@ -251,9 +251,9 @@ func TestCustomWorkers (t *testing.T) {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	workers := make([]TunnyWorker, 4)
-    for i, _ := range workers {
-        workers[i] = &(customWorker{})
-    }
+	for i, _ := range workers {
+		workers[i] = &(customWorker{})
+	}
 
 	pool, errPool := CreateCustomPool(workers).Open()
 

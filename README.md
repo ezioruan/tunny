@@ -1,4 +1,4 @@
-![Tunny](http://www.creepybit.co.uk/images/tunny_logo_small.png "Tunny")
+![Tunny](http://www.creepybit.co.uk/images/tunny_logo_small.png?v=1 "Tunny")
 
 Tunny is a golang library for creating and managing a thread pool, aiming to be simple, intuitive, ground breaking, revolutionary, world dominating and also trashy.
 
@@ -88,12 +88,16 @@ exampleChannel := make(chan int)
 
 pool, _ := tunny.CreatePoolGeneric(numCPUs).Open()
 
-pool.SendWork(func() {
+err := pool.SendWork(func() {
 	/* Do your hard work here, usual rules of enclosures apply here,
 	 * so you can return values like so:
 	 */
 	exampleChannel <- 10
 })
+
+if err != nil {
+	// You done goofed
+}
 
 ...
 ```
