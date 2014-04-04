@@ -1,4 +1,26 @@
 /*
+Copyright (c) 2014 Ashley Jeffs
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+*/
+
+/*
 Package tunny implements a simple pool for maintaining independant worker threads.
 Here's a simple example of tunny in action, creating a four threaded worker pool:
 
@@ -33,6 +55,13 @@ type TunnyWorker interface {
 	Ready() bool
 }
 
+type TunnyExtendedWorker interface {
+	Job(interface{}) (interface{})
+	Ready() bool
+	Initialize()
+	Terminate()
+}
+
 type workerWrapper struct {
 	readyChan  chan int
 	jobChan    chan interface{}
@@ -40,6 +69,10 @@ type workerWrapper struct {
 	worker     TunnyWorker
 }
 
+/* TODO: As long as Ready is able to lock this loop entirely we cannot
+ * guarantee that all go routines stop at pool.Close(), which totally
+ * stinks.
+ */
 func (wrapper *workerWrapper) Loop () {
 	for !wrapper.worker.Ready() {
 		time.Sleep(50 * time.Millisecond)
@@ -167,17 +200,21 @@ func (pool *WorkPool) Open () (*WorkPool, error) {
 
 		pool.selects = make( []reflect.SelectCase, len(pool.workers) )
 
-		for i, worker := range pool.workers {
-			(*worker).readyChan  = make (chan int)
-			(*worker).jobChan    = make (chan interface{})
-			(*worker).outputChan = make (chan interface{})
+		for i, workerWrapper := range pool.workers {
+			(*workerWrapper).readyChan  = make (chan int)
+			(*workerWrapper).jobChan    = make (chan interface{})
+			(*workerWrapper).outputChan = make (chan interface{})
 
 			pool.selects[i] = reflect.SelectCase {
 				Dir: reflect.SelectRecv,
-				Chan: reflect.ValueOf((*worker).readyChan),
+				Chan: reflect.ValueOf((*workerWrapper).readyChan),
 			}
 
-			go (*worker).Loop()
+			if extWorker, ok := (*workerWrapper).worker.(TunnyExtendedWorker); ok {
+				extWorker.Initialize()
+			}
+
+			go (*workerWrapper).Loop()
 		}
 
 		pool.running = true
@@ -197,8 +234,11 @@ func (pool *WorkPool) Close () error {
 
 	if pool.running {
 
-		for _, worker := range pool.workers {
-			(*worker).Close()
+		for _, workerWrapper := range pool.workers {
+			(*workerWrapper).Close()
+			if extWorker, ok := (*workerWrapper).worker.(TunnyExtendedWorker); ok {
+				extWorker.Terminate()
+			}
 		}
 		pool.running = false
 		return nil
